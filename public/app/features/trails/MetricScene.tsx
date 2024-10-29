@@ -31,6 +31,7 @@ import {
   getVariablesWithMetricConstant,
   MakeOptional,
   MetricSelectedEvent,
+  RefreshMetricsEvent,
   trailDS,
   VAR_GROUP_BY,
   VAR_METRIC_EXPR,
@@ -65,6 +66,16 @@ export class MetricScene extends SceneObjectBase<MetricSceneState> {
   private _onActivate() {
     if (this.state.actionView === undefined) {
       this.setActionView('overview');
+    }
+
+    if (config.featureToggles.enableScopesInMetricsExplore) {
+      // Push the scopes change event to the tabs
+      // The event is not propagated because the tabs are not part of the scene graph
+      this._subs.add(
+        this.subscribeToEvent(RefreshMetricsEvent, (event) => {
+          this.state.body.state.selectedTab?.publishEvent(event);
+        })
+      );
     }
   }
 

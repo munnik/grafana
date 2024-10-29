@@ -2,6 +2,7 @@ import { css } from '@emotion/css';
 import { isNumber, max, min, throttle } from 'lodash';
 
 import { DataFrame, FieldType, GrafanaTheme2, PanelData, SelectableValue } from '@grafana/data';
+import { config } from '@grafana/runtime';
 import {
   PanelBuilders,
   QueryVariable,
@@ -32,7 +33,14 @@ import { MetricScene } from '../MetricScene';
 import { StatusWrapper } from '../StatusWrapper';
 import { reportExploreMetrics } from '../interactions';
 import { ALL_VARIABLE_VALUE } from '../services/variables';
-import { MDP_METRIC_PREVIEW, trailDS, VAR_FILTERS, VAR_GROUP_BY, VAR_GROUP_BY_EXP } from '../shared';
+import {
+  MDP_METRIC_PREVIEW,
+  RefreshMetricsEvent,
+  trailDS,
+  VAR_FILTERS,
+  VAR_GROUP_BY,
+  VAR_GROUP_BY_EXP,
+} from '../shared';
 import { getColorByIndex, getTrailFor } from '../utils';
 
 import { AddToFiltersGraphAction } from './AddToFiltersGraphAction';
@@ -75,6 +83,14 @@ export class LabelBreakdownScene extends SceneObjectBase<LabelBreakdownSceneStat
 
   private _onActivate() {
     const variable = this.getVariable();
+
+    if (config.featureToggles.enableScopesInMetricsExplore) {
+      this._subs.add(
+        this.subscribeToEvent(RefreshMetricsEvent, () => {
+          this.updateBody(this.getVariable());
+        })
+      );
+    }
 
     variable.subscribeToState((newState, oldState) => {
       if (
