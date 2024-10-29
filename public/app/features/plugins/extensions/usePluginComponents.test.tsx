@@ -10,9 +10,9 @@ import { AddedComponentsRegistry } from './registry/AddedComponentsRegistry';
 import { AddedLinksRegistry } from './registry/AddedLinksRegistry';
 import { ExposedComponentsRegistry } from './registry/ExposedComponentsRegistry';
 import { PluginExtensionRegistries } from './registry/types';
+import { useLoadAppPlugins } from './useLoadAppPlugins';
 import { usePluginComponents } from './usePluginComponents';
 import { isGrafanaDevMode, wrapWithPluginContext } from './utils';
-import { useLoadAppPlugins } from './useLoadAppPlugins';
 
 jest.mock('./useLoadAppPlugins');
 jest.mock('app/features/plugins/pluginSettings', () => ({
