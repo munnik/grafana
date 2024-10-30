@@ -173,6 +173,9 @@ export interface PanelMenuItem {
   shortcut?: string;
   href?: string;
   subMenu?: PanelMenuItem[];
+
+  // If set the complete rendering of the panel menu item will be replaced with this component
+  component?: () => React.ReactElement | null;
 }
 
 /**

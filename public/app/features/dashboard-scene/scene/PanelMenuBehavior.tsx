@@ -8,7 +8,7 @@ import {
   PluginExtensionPoints,
   urlUtil,
 } from '@grafana/data';
-import { config, getPluginLinkExtensions, locationService } from '@grafana/runtime';
+import { config, getPluginLinkExtensions, locationService, usePluginLinks } from '@grafana/runtime';
 import { LocalValueVariable, sceneGraph, SceneGridRow, VizPanel, VizPanelMenu } from '@grafana/scenes';
 import { DataQuery, OptionsWithLegend } from '@grafana/schema';
 import appEvents from 'app/core/app_events';
@@ -20,6 +20,7 @@ import { getMessageFromError } from 'app/core/utils/errors';
 import { getCreateAlertInMenuAvailability } from 'app/features/alerting/unified/utils/access-control';
 import { scenesPanelToRuleFormValues } from 'app/features/alerting/unified/utils/rule-form';
 import { shareDashboardType } from 'app/features/dashboard/components/ShareModal/utils';
+import { renderPanelMenuItems } from 'app/features/dashboard/dashgrid/PanelHeader/PanelHeaderMenu';
 import { InspectTab } from 'app/features/inspector/types';
 import { getScenePanelLinksSupplier } from 'app/features/panel/panellinks/linkSuppliers';
 import { createExtensionSubMenu } from 'app/features/plugins/extensions/utils';
@@ -264,22 +265,48 @@ export function panelMenuBehavior(menu: VizPanelMenu, isRepeat = false) {
 
     items.push(getInspectMenuItem(plugin, panel, dashboard));
 
-    // TODO: make sure that this works reliably with the reactive extension registry
-    // (we need to be able to know in advance what extensions should be loaded for this extension point, and make it possible to await for them.)
-    const { extensions } = getPluginLinkExtensions({
-      extensionPointId: PluginExtensionPoints.DashboardPanelMenu,
-      context: createExtensionContext(panel, dashboard),
-      limitPerPlugin: 3,
-    });
-
-    if (extensions.length > 0 && !dashboard.state.isEditing) {
-      items.push({
-        text: 'Extensions',
-        iconClassName: 'plug',
-        type: 'submenu',
-        subMenu: createExtensionSubMenu(extensions),
+    const ExtensionsMenuItem = () => {
+      const { links, isLoading } = usePluginLinks({
+        extensionPointId: PluginExtensionPoints.DashboardPanelMenu,
+        context: createExtensionContext(panel, dashboard),
+        limitPerPlugin: 3,
       });
-    }
+
+      if (dashboard.state.isEditing) {
+        return null;
+      }
+
+      if (isLoading) {
+        renderPanelMenuItems([
+          {
+            text: 'Extensions (loading...)',
+            iconClassName: 'plug',
+          },
+        ]);
+      }
+
+      if (links.length === 0) {
+        return null;
+      }
+
+      return (
+        <>
+          {renderPanelMenuItems([
+            {
+              text: 'Extensions',
+              iconClassName: 'plug',
+              type: 'submenu',
+              subMenu: createExtensionSubMenu(links),
+            },
+          ])}
+        </>
+      );
+    };
+
+    items.push({
+      text: 'Extensions',
+      component: ExtensionsMenuItem,
+    });
 
     if (moreSubMenu.length) {
       items.push({

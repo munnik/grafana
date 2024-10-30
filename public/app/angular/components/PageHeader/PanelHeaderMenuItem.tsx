@@ -16,6 +16,10 @@ export const PanelHeaderMenuItem = (props: Props & PanelMenuItem) => {
   const styles = useStyles2(getStyles);
   const icon = props.iconClassName ? toIconName(props.iconClassName) : undefined;
 
+  if (props.component) {
+    return <props.component />;
+  }
+
   switch (props.type) {
     case 'divider':
       return <li className="divider" />;
