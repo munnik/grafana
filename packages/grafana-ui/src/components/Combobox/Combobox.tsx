@@ -183,13 +183,21 @@ export const Combobox = <T extends string | number>({
     items,
     itemToString,
     selectedItem,
+
     onSelectedItemChange: ({ selectedItem }) => {
+      console.log('$ onSelectedItemChange');
       onChange(selectedItem);
     },
+
     defaultHighlightedIndex: selectedItemIndex ?? 0,
 
     scrollIntoView: () => {},
-    onInputValueChange: ({ inputValue }) => {
+    onInputValueChange: ({ inputValue, isOpen }) => {
+      // If the input changed because the user selected a value, no need to update the items
+      if (!isOpen) {
+        return;
+      }
+
       const customValueOption =
         createCustomValue &&
         inputValue &&
@@ -217,28 +225,28 @@ export const Combobox = <T extends string | number>({
     },
 
     onIsOpenChange: ({ isOpen, inputValue }) => {
-      // Default to displaying all values when opening
-      if (isOpen && !isAsync) {
-        setItems(options);
+      if (!isOpen) {
         return;
       }
 
-      if (isOpen && isAsync) {
-        setAsyncLoading(true);
-        loadOptions(inputValue ?? '')
-          .then((options) => {
-            setItems(options);
-            setAsyncLoading(false);
-          })
-          .catch((err) => {
-            if (!(err instanceof StaleResultError)) {
-              // TODO: handle error
-              setAsyncLoading(false);
-              throw err;
-            }
-          });
-        return;
-      }
+      setInputValue('');
+
+      // if (isOpen && isAsync) {
+      //   setAsyncLoading(true);
+      //   loadOptions(inputValue ?? '')
+      //     .then((options) => {
+      //       setItems(options);
+      //       setAsyncLoading(false);
+      //     })
+      //     .catch((err) => {
+      //       if (!(err instanceof StaleResultError)) {
+      //         // TODO: handle error
+      //         setAsyncLoading(false);
+      //         throw err;
+      //       }
+      //     });
+      //   return;
+      // }
     },
     onHighlightedIndexChange: ({ highlightedIndex, type }) => {
       if (type !== useCombobox.stateChangeTypes.MenuMouseLeave) {
