@@ -3,13 +3,11 @@ import { Meta, StoryFn, StoryObj } from '@storybook/react';
 import { Chance } from 'chance';
 import React, { ComponentProps, useCallback, useEffect, useState } from 'react';
 
-import { SelectableValue } from '@grafana/data';
-
 import { useTheme2 } from '../../themes/ThemeContext';
 import { Alert } from '../Alert/Alert';
 import { Divider } from '../Divider/Divider';
 import { Field } from '../Forms/Field';
-import { Select, AsyncSelect } from '../Select/Select';
+import { Select } from '../Select/Select';
 
 import { Combobox, ComboboxOption } from './Combobox';
 
@@ -55,8 +53,12 @@ const meta: Meta<PropsAndCustomArgs> = {
 
 const BasicWithState: StoryFn<typeof Combobox> = (args) => {
   const [value, setValue] = useState(args.value);
+  console.log('--- Story render ---', { value });
+
+  const valueString = value ? JSON.stringify(value) : 'null';
+
   return (
-    <Field label="Test input" description="Input with a few options">
+    <Field label={`Test input: ${valueString}`} description="Input with a few options">
       <Combobox
         id="test-combobox"
         {...args}
@@ -265,7 +267,7 @@ const AsyncStory: StoryFn<PropsAndCustomArgs> = (args) => {
   // This simulates a kind of search API call
   const loadOptionsWithLabels = useCallback((inputValue: string) => {
     loadOptionsAction(inputValue);
-    console.info(`Load options called with value '${inputValue}' `);
+    console.log(`[Story] loadOptions`, inputValue);
     return fakeSearchAPI(`http://example.com/search?query=${inputValue}`);
   }, []);
 
