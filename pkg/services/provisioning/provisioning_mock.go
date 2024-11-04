@@ -4,6 +4,7 @@ import "context"
 
 type Calls struct {
 	RunInitProvisioners                 []any
+	ProvisionOrgs                       []any
 	ProvisionDatasources                []any
 	ProvisionPlugins                    []any
 	ProvisionDashboards                 []any
@@ -16,6 +17,7 @@ type Calls struct {
 type ProvisioningServiceMock struct {
 	Calls                                   *Calls
 	RunInitProvisionersFunc                 func(ctx context.Context) error
+	ProvisionOrgsFunc                       func(ctx context.Context) error
 	ProvisionDatasourcesFunc                func(ctx context.Context) error
 	ProvisionPluginsFunc                    func() error
 	ProvisionDashboardsFunc                 func() error
@@ -34,6 +36,14 @@ func (mock *ProvisioningServiceMock) RunInitProvisioners(ctx context.Context) er
 	mock.Calls.RunInitProvisioners = append(mock.Calls.RunInitProvisioners, nil)
 	if mock.RunInitProvisionersFunc != nil {
 		return mock.RunInitProvisionersFunc(ctx)
+	}
+	return nil
+}
+
+func (mock *ProvisioningServiceMock) ProvisionOrgs(ctx context.Context) error {
+	mock.Calls.ProvisionOrgs = append(mock.Calls.ProvisionOrgs, nil)
+	if mock.ProvisionOrgsFunc != nil {
+		return mock.ProvisionOrgsFunc(ctx)
 	}
 	return nil
 }

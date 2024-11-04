@@ -29,10 +29,12 @@ import (
 	prov_alerting "github.com/grafana/grafana/pkg/services/provisioning/alerting"
 	"github.com/grafana/grafana/pkg/services/provisioning/dashboards"
 	"github.com/grafana/grafana/pkg/services/provisioning/datasources"
+	"github.com/grafana/grafana/pkg/services/provisioning/orgs"
 	"github.com/grafana/grafana/pkg/services/provisioning/plugins"
 	"github.com/grafana/grafana/pkg/services/quota"
 	"github.com/grafana/grafana/pkg/services/searchV2"
 	"github.com/grafana/grafana/pkg/services/secrets"
+	"github.com/grafana/grafana/pkg/services/user"
 	"github.com/grafana/grafana/pkg/setting"
 )
 
@@ -54,6 +56,7 @@ func ProvideService(
 	secrectService secrets.Service,
 	orgService org.Service,
 	resourcePermissions accesscontrol.ReceiverPermissionsService,
+	userService user.Service,
 ) (*ProvisioningServiceImpl, error) {
 	s := &ProvisioningServiceImpl{
 		Cfg:                          cfg,
@@ -63,6 +66,7 @@ func ProvideService(
 		EncryptionService:            encryptionService,
 		NotificationService:          notificatonService,
 		newDashboardProvisioner:      dashboards.New,
+		provisionOrgs:                orgs.Provision,
 		provisionDatasources:         datasources.Provision,
 		provisionPlugins:             plugins.Provision,
 		provisionAlerting:            prov_alerting.Provision,
@@ -78,6 +82,7 @@ func ProvideService(
 		orgService:                   orgService,
 		folderService:                folderService,
 		resourcePermissions:          resourcePermissions,
+		userService:                  userService,
 	}
 
 	if err := s.setDashboardProvisioner(); err != nil {
@@ -103,9 +108,22 @@ type ProvisioningService interface {
 	ProvisionDatasources(ctx context.Context) error
 	ProvisionPlugins(ctx context.Context) error
 	ProvisionDashboards(ctx context.Context) error
+	ProvisionOrgs(ctx context.Context) error
 	ProvisionAlerting(ctx context.Context) error
 	GetDashboardProvisionerResolvedPath(name string) string
 	GetAllowUIUpdatesFromConfig(name string) bool
+}
+
+// Add a public constructor for overriding service to be able to instantiate OSS as fallback
+func NewProvisioningServiceImpl() *ProvisioningServiceImpl {
+	logger := log.New("provisioning")
+	return &ProvisioningServiceImpl{
+		log:                     logger,
+		newDashboardProvisioner: dashboards.New,
+		provisionDatasources:    datasources.Provision,
+		provisionPlugins:        plugins.Provision,
+		provisionOrgs:           orgs.Provision,
+	}
 }
 
 // Used for testing purposes
@@ -145,6 +163,7 @@ type ProvisioningServiceImpl struct {
 	dashboardProvisioner         dashboards.DashboardProvisioner
 	provisionDatasources         func(context.Context, string, datasources.BaseDataSourceService, datasources.CorrelationsStore, org.Service) error
 	provisionPlugins             func(context.Context, string, pluginstore.Store, pluginsettings.Service, org.Service) error
+	provisionOrgs                func(context.Context, string, org.Service, user.Service) error
 	provisionAlerting            func(context.Context, prov_alerting.ProvisionerConfig) error
 	mutex                        sync.Mutex
 	dashboardProvisioningService dashboardservice.DashboardProvisioningService
@@ -157,10 +176,17 @@ type ProvisioningServiceImpl struct {
 	secretService                secrets.Service
 	folderService                folder.Service
 	resourcePermissions          accesscontrol.ReceiverPermissionsService
+	userService                  user.Service
 }
 
 func (ps *ProvisioningServiceImpl) RunInitProvisioners(ctx context.Context) error {
-	err := ps.ProvisionDatasources(ctx)
+	err := ps.ProvisionOrgs(ctx)
+	if err != nil {
+		ps.log.Error("Failed to provision orgs", "error", err)
+		return err
+	}
+
+	err = ps.ProvisionDatasources(ctx)
 	if err != nil {
 		ps.log.Error("Failed to provision data sources", "error", err)
 		return err
@@ -215,6 +241,16 @@ func (ps *ProvisioningServiceImpl) Run(ctx context.Context) error {
 			return ctx.Err()
 		}
 	}
+}
+
+func (ps *ProvisioningServiceImpl) ProvisionOrgs(ctx context.Context) error {
+	orgPath := filepath.Join(ps.Cfg.ProvisioningPath, "orgs")
+	if err := ps.provisionOrgs(ctx, orgPath, ps.orgService, ps.userService); err != nil {
+		err = fmt.Errorf("%v: %w", "Org provisioning error", err)
+		ps.log.Error("Failed to provision orgs", "error", err)
+		return err
+	}
+	return nil
 }
 
 func (ps *ProvisioningServiceImpl) ProvisionDatasources(ctx context.Context) error {
